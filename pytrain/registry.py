@@ -16,17 +16,19 @@ class Function:
 
 
 class Registry:
-    def __init__(self):
+    def __init__(self, config):
         self.functions = []
         self.modules = []
 
+        self.config = config
+
     def load(self):
-        for root, _, files in os.walk("examples"):
+        for root, _, files in os.walk(self.config.get("-r") or "train"):
             if root.endswith("__pycache__"):
                 continue
 
             for filename in files:
-                if not filename.startswith("train_"):
+                if not filename.startswith(self.config.get("-k") or "train_"):
                     continue
 
                 basename = os.path.splitext(filename)[0]
