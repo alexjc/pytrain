@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # PyTrain — Copyright (c) 2019, Alex J. Champandard.
 """
 Usage: pytrain [-k FILTER] [-r ROOTDIR]

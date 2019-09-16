@@ -76,7 +76,7 @@ class Application:
         bindings.add("c-x")(self.stop)
 
         description = (
-            f"Running {len(self.registry.functions)} task(s),"
+            f"Running {len(self.registry.functions)} task(s), "
             + f"optimizing {len(self.registry.modules)} module(s)."
         )
 
@@ -93,9 +93,13 @@ class Application:
                 task = self.loop.create_task(self.run_task(function))
                 self._tasks.append(task)
 
-            if len(self._tasks):
+            if len(self._tasks) > 0:
                 await asyncio.wait(self._tasks)
 
     def run(self):
+        if len(self.registry.functions) == 0:
+            print(f"ERROR: No tasks found in specified directory.")
+            return
+
         with patch_stdout():
             self.loop.run_until_complete(self.main())
