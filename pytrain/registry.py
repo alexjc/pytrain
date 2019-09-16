@@ -1,6 +1,7 @@
 # PyTrain — Copyright (c) 2019, Alex J. Champandard.
 
 import os
+import sys
 import inspect
 import importlib
 
@@ -22,6 +23,14 @@ class Registry:
 
         self.config = config
 
+    def import_module(self, path):
+        name = path.replace(".py", "").replace("/", ".")
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        return module
+
     def load(self):
         for root, _, files in os.walk(self.config.get("-r") or "train"):
             if root.endswith("__pycache__"):
@@ -31,10 +40,7 @@ class Registry:
                 if not filename.startswith(self.config.get("-k") or "train_"):
                     continue
 
-                basename = os.path.splitext(filename)[0]
-                module = importlib.import_module(
-                    os.path.join(root, basename).replace("/", ".")
-                )
+                module = self.import_module(os.path.join(root, filename))
                 self.load_module(module)
 
     def load_module(self, module):
