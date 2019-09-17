@@ -19,17 +19,12 @@ class Function:
 class Registry:
     def __init__(self, config):
         self.functions = []
-        self.modules = []
+        self.components = set()
 
         self.config = config
 
-    def import_module(self, path):
-        name = path.replace(".py", "").replace("/", ".")
-        spec = importlib.util.spec_from_file_location(name, path)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[spec.name] = module
-        spec.loader.exec_module(module)
-        return module
+    def create_instances(self):
+        return {cp: cp() for cp in self.components}
 
     def load(self):
         for root, _, files in os.walk(self.config.get("-r") or "train"):
@@ -42,6 +37,14 @@ class Registry:
 
                 module = self.import_module(os.path.join(root, filename))
                 self.load_module(module)
+
+    def import_module(self, path):
+        name = path.replace(".py", "").replace("/", ".")
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        return module
 
     def load_module(self, module):
         for name in dir(module):
@@ -60,4 +63,4 @@ class Registry:
                 if module == param.empty:
                     continue
                 if hasattr(module, "parameters"):
-                    self.modules.append(module)
+                    self.components.add(module)

@@ -35,15 +35,15 @@ class Application:
         self.loop = loop
         self.registry = registry
 
-        self._modules = {m: m() for m in self.registry.modules}
+        self._components = self.registry.create_instances()
         self._tasks = []
 
     def prepare_task(self, task):
         args, parameters = [], []
         for param in task.signature.parameters.values():
             argument = param.annotation
-            if argument in self._modules:
-                module = self._modules[argument]
+            if argument in self._components:
+                module = self._components[argument]
                 args.append(module)
                 parameters.extend(module.parameters())
             else:
@@ -77,7 +77,7 @@ class Application:
 
         description = (
             f"Running {len(self.registry.functions)} task(s), "
-            + f"optimizing {len(self.registry.modules)} module(s)."
+            + f"optimizing {len(self.registry.components)} component(s)."
         )
 
         self.progress_bar = ProgressBar(
