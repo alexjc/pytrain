@@ -62,6 +62,9 @@ class Application:
             ):
                 trainer.step(task, args)
 
+            trainer.save(args)
+            await asyncio.sleep(0.01)
+
         except asyncio.CancelledError:
             pass
         except:

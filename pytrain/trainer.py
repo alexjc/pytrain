@@ -1,5 +1,7 @@
 # PyTrain — Copyright (c) 2019, Alex J. Champandard.
 
+import hashlib
+
 import torch
 
 
@@ -13,3 +15,15 @@ class BasicTrainer:
         loss.backward()
         self.optimizer.step()
         return loss.item()
+
+    def save(self, args):
+        for instance in args:
+            if not hasattr(instance, "parameters"):
+                continue
+
+            cls = instance.__class__
+            data = (cls.__module__ + "." + cls.__qualname__).encode("utf-8")
+            digest = hashlib.blake2b(data, digest_size=8).hexdigest()
+            filename = f"{cls.__name__}-{digest}.pkl"
+            torch.save(instance, f"models/{filename}")
+            print(f"💾 ", cls.__module__, filename)
