@@ -11,13 +11,16 @@ class BasicTrainer:
 
     def step(self, task, args):
         self.optimizer.zero_grad()
-        loss = task.function(*args)
+        args = args.copy()
+        if "batch" in args:
+            args["batch"] = next(args["batch"])
+        loss = task.function(**args)
         loss.backward()
         self.optimizer.step()
         return loss.item()
 
     def save(self, args):
-        for instance in args:
+        for instance in args.values():
             if not hasattr(instance, "parameters"):
                 continue
 

@@ -1,5 +1,6 @@
 # PyTrain — Copyright (c) 2019, Alex J. Champandard.
 
+import os
 import asyncio
 import traceback
 
@@ -39,16 +40,16 @@ class Application:
         self._tasks = []
 
     def prepare_task(self, task):
-        args, parameters = [], []
+        args, model = {}, []
         for param in task.signature.parameters.values():
             argument = param.annotation
             if argument in self._components:
                 module = self._components[argument]
-                args.append(module)
-                parameters.extend(module.parameters())
+                args[param.name] = module
+                model.extend(module.parameters())
             else:
-                args.append(argument())
-        return args, parameters
+                args[param.name] = argument()
+        return args, model
 
     async def run_task(self, task):
         try:
@@ -60,8 +61,9 @@ class Application:
                 label=task.name,
                 remove_when_done=True,
             ):
-                trainer.step(task, args)
+                loss = trainer.step(task, args)
 
+            print(loss)
             trainer.save(args)
             await asyncio.sleep(0.01)
 
@@ -103,6 +105,8 @@ class Application:
         if len(self.registry.functions) == 0:
             print(f"ERROR: No tasks found in specified directory.")
             return
+
+        os.makedirs("models", exist_ok=True)
 
         with patch_stdout():
             self.loop.run_until_complete(self.main())
