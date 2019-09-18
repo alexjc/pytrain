@@ -30,6 +30,6 @@ class MyData:
 
 
 @pytrain.optimize_until(iterations=1000)
-def task_optimize_image(batch: MyData, module: MyImage):
+def task_optimize_image(data: MyData, module: MyImage):
     output = module()
-    return torch.nn.functional.mse_loss(output, batch.target)
+    return torch.nn.functional.mse_loss(output, data.target)

@@ -1,20 +1,43 @@
 # PyTrain — Copyright (c) 2019, Alex J. Champandard.
 
 import hashlib
+import itertools
 
 import torch
 
+from .data import Batch
+
+
+def iterate_ordered(data, batch_size=32):
+    for i in itertools.count():
+        indices = torch.arange(i * batch_size, i + 1 * batch_size, size=(batch_size,))
+        yield Batch(input=data[indices % data.shape[0]])
+
+
+def iterate_random(data, batch_size=32):
+    while True:
+        indices = torch.randint(0, data.shape[0], size=(batch_size,))
+        yield Batch(input=data[indices])
+
 
 class BasicTrainer:
-    def __init__(self, parameters, lr=1e-2):
-        self.optimizer = torch.optim.Adam(parameters, lr=lr)
+    def __init__(self, task, args, params, lr=1e-2):
+        for key in ("batch", "iterator"):
+            if key in args:
+                args[key] = iterate_random(args[key])
 
-    def step(self, task, args):
-        self.optimizer.zero_grad()
-        args = args.copy()
+        self.args = args
+        self.task = task
+
+        self.optimizer = torch.optim.Adam(params, lr=lr)
+
+    def step(self):
+        args = self.args.copy()
         if "batch" in args:
             args["batch"] = next(args["batch"])
-        loss = task.function(**args)
+
+        self.optimizer.zero_grad()
+        loss = self.task.function(**args)
         loss.backward()
         self.optimizer.step()
         return loss.item()

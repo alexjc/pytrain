@@ -54,19 +54,21 @@ class Application:
         self.registry = registry
         self.losses = {}
 
-        self._components = self.registry.create_instances()
+        self._components = self.registry.create_components()
+        self._datasets = self.registry.create_datasets()
         self._tasks = []
 
     def prepare_task(self, task):
         args, model = {}, []
         for param in task.signature.parameters.values():
-            argument = param.annotation
-            if argument in self._components:
-                module = self._components[argument]
-                args[param.name] = module
-                model.extend(module.parameters())
-            else:
-                args[param.name] = argument()
+            type_ = param.annotation
+            if type_ in self._components:
+                component = self._components[type_]
+                args[param.name] = component
+                model.extend(component.parameters())
+            if type_ in self._datasets:
+                dataset = self._datasets[type_]
+                args[param.name] = dataset
         return args, model
 
     async def run_task(self, task):
@@ -74,14 +76,14 @@ class Application:
             start = time.time()
             args, params = self.prepare_task(task)
 
-            trainer = BasicTrainer(params)
+            trainer = BasicTrainer(task, args, params)
             progress = self.progress_bar(
                 range(task.config("iterations", 100)),
                 label=task.name,
                 remove_when_done=True,
             )
             for _ in progress:
-                loss = trainer.step(task, args)
+                loss = trainer.step()
                 self.losses[progress] = loss
                 await asyncio.sleep(0.0)
 
@@ -125,7 +127,7 @@ class Application:
         )
 
         with self.progress_bar:
-            self.progress_bar.title = HTML(f"<b>Phase 1</b>: {description}")
+            self.progress_bar.title = HTML(f"<b>Stage 1</b>: {description}")
 
             for function in self.registry.functions:
                 task = self.loop.create_task(self.run_task(function))

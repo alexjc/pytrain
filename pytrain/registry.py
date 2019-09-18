@@ -20,11 +20,15 @@ class Registry:
     def __init__(self, config):
         self.functions = []
         self.components = set()
+        self.datasets = set()
 
         self.config = config
 
-    def create_instances(self):
+    def create_components(self):
         return {cp: cp() for cp in self.components}
+
+    def create_datasets(self):
+        return {ds: ds() for ds in self.datasets}
 
     def load(self):
         for root, _, files in os.walk(self.config.get("-r") or "train"):
@@ -61,8 +65,10 @@ class Registry:
             self.functions.append(Function(qualname, function, signature))
 
             for param in signature.parameters.values():
-                component = param.annotation
-                if component == param.empty:
+                type_ = param.annotation
+                if type_ == param.empty:
                     continue
-                if hasattr(component, "parameters"):
-                    self.components.add(component)
+                if hasattr(type_, "parameters"):
+                    self.components.add(type_)
+                if param.name in ("batch", "data", "iterator"):
+                    self.datasets.add(type_)
