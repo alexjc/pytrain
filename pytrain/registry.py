@@ -59,8 +59,8 @@ class Registry:
             self.functions.append(Function(name, function, signature))
 
             for param in signature.parameters.values():
-                module = param.annotation
-                if module == param.empty:
+                component = param.annotation
+                if component == param.empty:
                     continue
-                if hasattr(module, "parameters"):
-                    self.components.add(module)
+                if hasattr(component, "parameters"):
+                    self.components.add(component)
