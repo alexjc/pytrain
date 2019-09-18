@@ -20,6 +20,7 @@ class BasicTrainer:
         return loss.item()
 
     def save(self, args):
+        log = []
         for instance in args.values():
             if not hasattr(instance, "parameters"):
                 continue
@@ -29,4 +30,6 @@ class BasicTrainer:
             digest = hashlib.blake2b(data, digest_size=8).hexdigest()
             filename = f"{cls.__name__}-{digest}.pkl"
             torch.save(instance, f"models/{filename}")
-            print(f"💾 ", cls.__module__, filename)
+            log.append(cls.__qualname__)
+
+        print("💾  Saved model snapshot for: {}.".format(", ".join(log)))

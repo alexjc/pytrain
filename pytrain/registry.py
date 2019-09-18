@@ -47,6 +47,7 @@ class Registry:
         return module
 
     def load_module(self, module):
+        module_name = module.__name__.split(".", maxsplit=1)[1]
         for name in dir(module):
             if not name.startswith("task_"):
                 continue
@@ -55,8 +56,9 @@ class Registry:
             if not hasattr(function, "_pytrain"):
                 function._pytrain = {}
 
+            qualname = module_name + "." + name
             signature = inspect.signature(function)
-            self.functions.append(Function(name, function, signature))
+            self.functions.append(Function(qualname, function, signature))
 
             for param in signature.parameters.values():
                 component = param.annotation

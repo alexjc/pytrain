@@ -1,6 +1,7 @@
 # PyTrain — Copyright (c) 2019, Alex J. Champandard.
 
 import os
+import time
 import asyncio
 import traceback
 
@@ -68,6 +69,7 @@ class Application:
 
     async def run_task(self, task):
         try:
+            start = time.time()
             args, params = self.prepare_task(task)
 
             trainer = BasicTrainer(params)
@@ -79,8 +81,11 @@ class Application:
             for _ in progress:
                 loss = trainer.step(task, args)
                 self.losses[progress] = loss
+                await asyncio.sleep(0.0)
 
-            print(f"📉  {task.name} completed with error={loss:1.2e}")
+            elapsed = time.time() - start
+            print(f"{task.name}\n🏁  Task completed in {elapsed:1.1f}s total time.")
+            print(f"📉  Approximate training error={loss:1.2e}")
             trainer.save(args)
             await asyncio.sleep(0.01)
 
