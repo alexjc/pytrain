@@ -20,7 +20,9 @@ SCREEN_TOOLBAR = HTML("<b>[Control-L]</b> clear  <b>[Control-X]</b> quit")
 SCREEN_STYLE = Style.from_dict({"bottom-toolbar": "fg:cyan", "title": "fg:cyan"})
 SCREEN_FORMATTERS = [
     formatters.Label(),
-    formatters.Text(" "),
+    formatters.Text(" e="),
+    None,
+    formatters.Text(" i="),
     formatters.Progress(),
     formatters.Text(" "),
     formatters.Text("ETA ", style="class:time-left"),
@@ -31,10 +33,23 @@ SCREEN_FORMATTERS = [
 ]
 
 
+class ShowLoss(formatters.Formatter):
+    def __init__(self, losses: dict):
+        self.losses = losses
+
+    def format(self, progress_bar, progress, width):
+        loss = self.losses.get(progress, 0.0)
+        return f"{loss:1.2e}"
+
+    def get_width(self, progress_bar):
+        return formatters.D.exact(8)
+
+
 class Application:
     def __init__(self, loop, registry):
         self.loop = loop
         self.registry = registry
+        self.losses = {}
 
         self._components = self.registry.create_instances()
         self._tasks = []
@@ -56,14 +71,16 @@ class Application:
             args, params = self.prepare_task(task)
 
             trainer = BasicTrainer(params)
-            for _ in self.progress_bar(
+            progress = self.progress_bar(
                 range(task.config("iterations", 100)),
                 label=task.name,
                 remove_when_done=True,
-            ):
+            )
+            for _ in progress:
                 loss = trainer.step(task, args)
+                self.losses[progress] = loss
 
-            print(loss)
+            print(f"📉  {task.name} completed with error={loss:1.2e}")
             trainer.save(args)
             await asyncio.sleep(0.01)
 
@@ -85,12 +102,15 @@ class Application:
             + f"optimizing {len(self.registry.components)} component(s)."
         )
 
+        formatters = SCREEN_FORMATTERS.copy()
+        formatters[formatters.index(None)] = ShowLoss(self.losses)
+
         self.progress_bar = ProgressBar(
             title=SCREEN_TITLE.format(__version__, description),
             bottom_toolbar=SCREEN_TOOLBAR,
             style=SCREEN_STYLE,
             key_bindings=bindings,
-            formatters=SCREEN_FORMATTERS,
+            formatters=formatters,
         )
 
         with self.progress_bar:
