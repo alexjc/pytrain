@@ -5,7 +5,7 @@ import time
 import asyncio
 import traceback
 
-from prompt_toolkit import HTML
+from prompt_toolkit import HTML, print_formatted_text
 from prompt_toolkit.styles import Style
 from prompt_toolkit.shortcuts import ProgressBar
 from prompt_toolkit.key_binding import KeyBindings
@@ -16,9 +16,11 @@ from . import __version__
 from .trainer import BasicTrainer
 
 
-SCREEN_TITLE = HTML("<b>PyTrain {}</b> — {}")
+SCREEN_BANNER = HTML("<banner><b>PyTrain {}</b> - {}</banner>")
 SCREEN_TOOLBAR = HTML("<b>[Control-L]</b> clear  <b>[Control-X]</b> quit")
-SCREEN_STYLE = Style.from_dict({"bottom-toolbar": "fg:cyan", "title": "fg:cyan"})
+SCREEN_STYLE = Style.from_dict(
+    {"bottom-toolbar": "fg:cyan", "banner": "fg:cyan", "title": "fg:white"}
+)
 SCREEN_FORMATTERS = [
     formatters.Label(),
     formatters.Text(" e="),
@@ -110,8 +112,12 @@ class Application:
         formatters = SCREEN_FORMATTERS.copy()
         formatters[formatters.index(None)] = ShowLoss(self.losses)
 
+        project = os.path.basename(os.getcwd())
+        print_formatted_text(
+            SCREEN_BANNER.format(__version__, project), style=SCREEN_STYLE
+        )
+
         self.progress_bar = ProgressBar(
-            title=SCREEN_TITLE.format(__version__, description),
             bottom_toolbar=SCREEN_TOOLBAR,
             style=SCREEN_STYLE,
             key_bindings=bindings,
@@ -119,6 +125,8 @@ class Application:
         )
 
         with self.progress_bar:
+            self.progress_bar.title = HTML(f"<b>Phase 1</b>: {description}")
+
             for function in self.registry.functions:
                 task = self.loop.create_task(self.run_task(function))
                 self._tasks.append(task)
