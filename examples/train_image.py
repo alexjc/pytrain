@@ -29,7 +29,7 @@ class MyData:
         yield pytrain.Batch(target=self.target)
 
 
-@pytrain.optimize_until(iterations=1000)
+@pytrain.terminates(iteration=1000)
 def task_optimize_image(data: MyData, module: MyImage):
     output = module()
     return torch.nn.functional.mse_loss(output, data.target)
