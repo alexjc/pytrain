@@ -57,8 +57,7 @@ class Registry:
                 continue
 
             function = getattr(module, name)
-            if not hasattr(function, "_pytrain"):
-                function._pytrain = {}
+            vars(function).setdefault("_pytrain", {})
 
             qualname = module_name + "." + name
             signature = inspect.signature(function)

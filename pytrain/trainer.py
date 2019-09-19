@@ -8,13 +8,13 @@ import torch
 from .data import Batch
 
 
-def iterate_ordered(data, batch_size=32):
+def iterate_ordered(data, batch_size):
     for i in itertools.count():
         indices = torch.arange(i * batch_size, i + 1 * batch_size, size=(batch_size,))
         yield Batch(input=data[indices % data.shape[0]])
 
 
-def iterate_random(data, batch_size=32):
+def iterate_random(data, batch_size):
     while True:
         indices = torch.randint(0, data.shape[0], size=(batch_size,))
         yield Batch(input=data[indices])
@@ -23,8 +23,11 @@ def iterate_random(data, batch_size=32):
 class BasicTrainer:
     def __init__(self, task, args, params, lr=1e-2):
         for key in ("batch", "iterator"):
-            if key in args:
-                args[key] = iterate_random(args[key])
+            if key not in args:
+                continue
+            options = {"random": iterate_random, "intact": iterate_ordered}
+            iterator = options[task.config("order", "random")]
+            args[key] = iterator(args[key], task.config("batch_size", 16))
 
         self.args = args
         self.task = task
