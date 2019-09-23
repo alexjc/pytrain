@@ -21,33 +21,45 @@ def iterate_random(data, batch_size):
 
 
 class BasicTrainer:
-    def __init__(self, task, args, params, lr=1e-2):
+    def __init__(self, lr=1e-2):
+        self.learning_rate = lr
+        self.optimizers = []
+
+    def setup_function(self, task, args):
         for key in ("batch", "iterator"):
             if key not in args:
                 continue
             options = {"random": iterate_random, "intact": iterate_ordered}
             iterator = options[task.config("order", "random")]
-            args[key] = iterator(args[key], task.config("batch_size", 16))
+            args[key] = iterator(args[key], task.config("batch_size", 32))
+        return task, args
 
-        self.args = args
-        self.task = task
+    def setup_component(self, params):
+        optimizer = torch.optim.Adam(params, lr=self.learning_rate)
+        self.optimizers.append(optimizer)
+        return optimizer
 
-        self.optimizer = torch.optim.Adam(params, lr=lr)
+    def prepare(self):
+        for optimizer in self.optimizers:
+            optimizer.zero_grad()
 
-    def step(self):
-        args = self.args.copy()
+    def run(self, context):
+        task, args = context
+        args = args.copy()
         if "batch" in args:
             args["batch"] = next(args["batch"])
 
-        self.optimizer.zero_grad()
-        loss = self.task.function(**args)
+        loss = task.function(**args)
         loss.backward()
-        self.optimizer.step()
         return loss.item()
 
-    def save(self, args):
+    def step(self):
+        for optimizer in self.optimizers:
+            optimizer.step()
+
+    def save(self, components):
         log = []
-        for instance in args.values():
+        for instance in components:
             if not hasattr(instance, "parameters"):
                 continue
 

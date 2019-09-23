@@ -4,6 +4,7 @@ import os
 import sys
 import inspect
 import importlib
+import collections
 
 
 class Function:
@@ -14,6 +15,16 @@ class Function:
 
     def config(self, key, default):
         return self.function._pytrain.get(key, default)
+
+    def dependencies(self):
+        dependencies = []
+        for param in self.signature.parameters.values():
+            type_ = param.annotation
+            if type_ == param.empty:
+                continue
+            if hasattr(type_, "parameters"):
+                dependencies.append(type_)
+        return tuple(dependencies)
 
 
 class Registry:
@@ -43,7 +54,7 @@ class Registry:
                 self.load_module(module)
 
     def import_module(self, path):
-        name = path.replace(".py", "").replace("/", ".")
+        name = os.path.split(path)[1].replace(".py", "").replace("/", ".")
         spec = importlib.util.spec_from_file_location(name, path)
         module = importlib.util.module_from_spec(spec)
         sys.modules[spec.name] = module
@@ -51,7 +62,7 @@ class Registry:
         return module
 
     def load_module(self, module):
-        module_name = module.__name__.split(".", maxsplit=1)[1]
+        module_name = module.__name__.split(".")[-1]
         for name in dir(module):
             if not name.startswith("task_"):
                 continue
@@ -71,3 +82,10 @@ class Registry:
                     self.components.add(type_)
                 if param.name in ("batch", "data", "iterator"):
                     self.datasets.add(type_)
+
+    def groups(self):
+        groups = collections.defaultdict(list)
+        for f in self.functions:
+            groups[f.dependencies()].append(f)
+
+        return groups.items()
