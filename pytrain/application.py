@@ -3,7 +3,7 @@
 import os
 import time
 import asyncio
-import traceback
+import itertools
 
 from prompt_toolkit import HTML, print_formatted_text
 from prompt_toolkit.styles import Style
@@ -44,7 +44,6 @@ class ShowBar(formatters.Formatter):
             return f"error={loss:1.2e}"
 
         width -= formatters.get_cwidth(self.start + self.sym_b + self.end)
-        assert progress.total
 
         pb_a = int(progress.percentage * width / 100)
         bar_a = self.sym_a * pb_a
@@ -96,14 +95,12 @@ class Application:
                 args[param.name] = self._datasets[type_]
         return args
 
-    async def run_function(self, function):
+    async def run_function(self, function, iterations):
         args = self.prepare_fuction(function)
         context = self.trainer.setup_function(function, args)
 
         progress = self.progress_bar(
-            range(function.config("iterations", 100)),
-            label="  - " + function.name,
-            remove_when_done=True,
+            data=range(iterations), label="  - " + function.name, remove_when_done=True
         )
         for i in progress:
             loss = self.trainer.run(context)
@@ -113,7 +110,14 @@ class Application:
         print(f"📉  {function.name} approximate error={loss:1.2e}")
         await asyncio.sleep(0.01)
 
-    async def run_components(self, components):
+    def prepare_components(self, components):
+        iterations = 100
+        for cp in components:
+            config = getattr(cp, "_pytrain", {})
+            iterations = max(iterations, config.get("iterations", 0))
+        return iterations
+
+    async def run_components(self, components, iterations):
         start = time.time()
 
         params, label = [], []
@@ -126,14 +130,15 @@ class Application:
 
         self.trainer.setup_component(params)
         progress = self.progress_bar(
-            range(100), label=" ".join(label), remove_when_done=True
+            range(iterations), label=" ".join(label), remove_when_done=True
         )
         for i in progress:
             yield i
 
         elapsed = time.time() - start
         print(
-            f"{' '.join(label)}\n🏁  Training completed in {elapsed:1.1f}s total time."
+            f"{' '.join(label)}\n"
+            + f"🏁  Training completed in {elapsed:1.1f}s total time."
         )
 
         self.trainer.save([self._components[cp] for cp in components])
@@ -174,8 +179,9 @@ class Application:
             self.progress_bar.title = HTML(f"<b>Stage 1</b>: {description}")
 
             for components, functions in self.registry.groups():
-                root = self.run_components(components)
-                children = [self.run_function(f) for f in functions]
+                iterations = self.prepare_components(components)
+                root = self.run_components(components, iterations)
+                children = [self.run_function(f, iterations) for f in functions]
                 self._tasks.append((root, children))
 
             while not self.quit and len(self._tasks):
