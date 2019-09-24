@@ -174,20 +174,23 @@ class Application:
             self.progress_bar.title = HTML(f"<b>Stage 1</b>: {description}")
 
             for components, functions in self.registry.groups():
-                task = self.run_components(components)
-                self._tasks.append(task)
-
-                for function in functions:
-                    task = self.run_function(function)
-                    self._tasks.append(task)
+                root = self.run_components(components)
+                children = [self.run_function(f) for f in functions]
+                self._tasks.append((root, children))
 
             while not self.quit and len(self._tasks):
                 self.trainer.prepare()
-                for task in list(self._tasks):
+                for root, children in list(self._tasks):
                     try:
-                        await task.__anext__()
+                        await root.__anext__()
                     except StopAsyncIteration:
-                        self._tasks.remove(task)
+                        self._tasks.remove((root, children))
+
+                    for task in children:
+                        try:
+                            await task.__anext__()
+                        except StopAsyncIteration:
+                            pass
 
                 self.trainer.step()
 
