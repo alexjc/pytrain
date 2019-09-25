@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pytrain"
-version = "0.0.2"
+version = "0.0.3"
 description = "Automated task/test framework for differentiable software."
 authors = ["Alex J. Champandard <445208+alexjc@users.noreply.github.com>"]
 license = "BSD-3-Clause"
