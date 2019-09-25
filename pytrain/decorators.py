@@ -3,12 +3,17 @@
 __all__ = ["terminates", "iterates"]
 
 
-def _annotate(function, **kwargs):
-    config = vars(function).setdefault("_pytrain", {})
+def _annotate(obj, **kwargs):
+    if not hasattr(obj, "_pytrain"):
+        config = {}
+        setattr(obj, "_pytrain", config)
+    else:
+        config = getattr(obj, "_pytrain")
+
     for key, value in kwargs.items():
         if value is not None:
             config[key] = value
-    return function
+    return obj
 
 
 def iterates(batch_size: int = None, order: int = None):
@@ -18,13 +23,12 @@ def iterates(batch_size: int = None, order: int = None):
     return wrapper
 
 
-def terminates(component, iteration: int = None, threshold: float = None):
-    if not hasattr(component, "_pytrain"):
-        config = {}
-        setattr(component, "_pytrain", config)
-    else:
-        config = getattr(component, "_pytrain")
+def terminates(component=None, iteration: int = None, threshold: float = None):
+    if component is None:
 
-    for key, value in dict(iterations=iteration, threshold=threshold).items():
-        if value is not None:
-            config[key] = value
+        def wrapper(function):
+            return _annotate(function, iteration=iteration, threshold=threshold)
+
+        return wrapper
+
+    _annotate(component, iteration=iteration, threshold=threshold)

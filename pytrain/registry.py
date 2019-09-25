@@ -68,7 +68,7 @@ class Registry:
                 continue
 
             function = getattr(module, name)
-            vars(function).setdefault("_pytrain", {})
+            config = vars(function).setdefault("_pytrain", {})
 
             qualname = module_name + "." + name
             signature = inspect.signature(function)
@@ -79,9 +79,16 @@ class Registry:
                 if type_ == param.empty:
                     continue
                 if hasattr(type_, "parameters"):
+                    self.configure_component(type_, config)
                     self.components.add(type_)
                 if param.name in ("batch", "data", "iterator"):
                     self.datasets.add(type_)
+
+    def configure_component(self, type_, config):
+        cfg = getattr(type_, "_pytrain", {})
+        if "iteration" in config:
+            cfg["iteration"] = max(config["iteration"], cfg.get("iteration", 0))
+        setattr(type_, "_pytrain", cfg)
 
     def groups(self):
         groups = collections.defaultdict(list)

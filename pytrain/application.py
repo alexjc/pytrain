@@ -114,7 +114,7 @@ class Application:
         iterations = 100
         for cp in components:
             config = getattr(cp, "_pytrain", {})
-            iterations = max(iterations, config.get("iterations", 0))
+            iterations = max(iterations, config.get("iteration", 0))
         return iterations
 
     async def run_components(self, components, iterations):
