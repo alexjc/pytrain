@@ -6,6 +6,8 @@ import inspect
 import importlib
 import collections
 
+from .data import Dataset
+
 
 class Function:
     def __init__(self, name, function, signature):
@@ -39,7 +41,7 @@ class Registry:
         return {cp: cp() for cp in self.components}
 
     def create_datasets(self):
-        return {ds: ds() for ds in self.datasets}
+        return {ds: Dataset.from_data(ds()) for ds in self.datasets}
 
     def load(self):
         for root, _, files in os.walk(self.config.get("-r") or "train"):
