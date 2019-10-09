@@ -24,14 +24,15 @@ class BasicTrainer:
     def __init__(self, device, lr=1e-2):
         self.device = device
         self.learning_rate = lr
+        self.samples = None
         self.optimizers = []
 
-    def setup_function(self, task, args):
+    def setup_function(self, task, args, mode):
         for key in ("batch", "iterator"):
             if key not in args:
                 continue
-            options = {"random": iterate_random, "intact": iterate_ordered}
-            iterator = options[task.config("order", "random")]
+            options = {"training": iterate_random, "validation": iterate_ordered}
+            iterator = options[task.config("order", None) or mode]
             args[key] = iterator(args[key], task.config("batch_size", 32))
         return task, args
 
@@ -43,18 +44,33 @@ class BasicTrainer:
     def prepare(self):
         for optimizer in self.optimizers:
             optimizer.zero_grad()
+        self.samples = 0
 
-    def run(self, context):
+    def run_training(self, context):
         task, args = context
         args = args.copy()
         if "batch" in args:
             args["batch"] = next(args["batch"]).to(self.device)
 
+        self.samples += 1
         loss = task.function(**args)
         loss.backward()
         return loss.item()
 
+    def run_validation(self, context):
+        task, args = context
+        args = args.copy()
+        if "batch" in args:
+            args["batch"] = next(args["batch"]).to(self.device)
+
+        with torch.no_grad():
+            loss = task.function(**args)
+        return loss.item()
+
     def step(self):
+        if self.samples == 0:
+            return
+
         for optimizer in self.optimizers:
             optimizer.step()
 

@@ -85,39 +85,70 @@ class Application:
         self._tasks = []
         self.quit = False
 
-    def prepare_fuction(self, function):
-        args = {}
+    def prepare_function(self, function, mode="training"):
+        args, length = {}, None
         for param in function.signature.parameters.values():
             type_ = param.annotation
             if type_ in self._components:
                 args[param.name] = self._components[type_]
             if type_ in self._datasets:
-                args[param.name] = self._datasets[type_]
-        return args
+                assert length is None, "Only one dataset per function supported."
+                length = self._datasets[type_].length() // function.config('batch_size', 32)
+                args[param.name] = getattr(self._datasets[type_], mode)
+        return args, length
 
-    async def run_function(self, function, iterations):
-        args = self.prepare_fuction(function)
-        context = self.trainer.setup_function(function, args)
+    async def run_function(self, function, args, iterations, mode):
+        context = self.trainer.setup_function(function, args, mode)
+        run_one_batch = getattr(self.trainer, "run_" + mode)
 
         progress = self.progress_bar(
             data=range(iterations), label="  - " + function.name, remove_when_done=True
         )
+        self.losses[progress] = float("+inf")
         for i in progress:
-            loss = self.trainer.run(context)
-            self.losses[progress] = loss
-            yield i
-
-        print(f"📉  {function.name} approximate error={loss:1.2e}")
-        await asyncio.sleep(0.01)
+            loss = run_one_batch(context)
+            if loss is None:
+                break
+            yield progress, loss
 
     def prepare_components(self, components):
-        iterations = 100
+        epochs = 1
         for cp in components:
             config = getattr(cp, "_pytrain", {})
-            iterations = max(iterations, config.get("iteration", 0))
-        return iterations
+            epochs = max(epochs, config.get("epoch", 0))
+        return epochs
 
-    async def run_components(self, components, iterations):
+    async def run_all_functions(self, epoch, functions, mode="training"):
+        args, length = [], 0
+        for function in functions:
+            a, l = self.prepare_function(function)
+            args.append(a)
+            length = max(l, length)
+
+        children = [
+            self.run_function(f, a, length, mode=mode) for f, a in zip(functions, args)
+        ]
+        total = 0.0
+        for j in self.progress_bar(
+            range(length + 1), label=mode, remove_when_done=True
+        ):
+            for task in list(children):
+                try:
+                    progress, loss = await task.__anext__()
+                    total += loss
+                except StopAsyncIteration:
+                    children.remove(task)
+
+                self.losses[progress] = total / (j + 1)
+
+            if len(children) == 0:
+                break
+
+            yield j
+
+        print(f"📉  {mode.capitalize()} epoch #{epoch:02} loss is {total/length}.")
+
+    async def run_components(self, components, functions, epochs):
         start = time.time()
 
         params, label = [], []
@@ -129,11 +160,14 @@ class Application:
             params.extend(component.parameters())
 
         self.trainer.setup_component(params)
-        progress = self.progress_bar(
-            range(iterations), label=" ".join(label), remove_when_done=True
-        )
-        for i in progress:
-            yield i
+        for i in self.progress_bar(
+            range(epochs), label=" ".join(label), remove_when_done=True
+        ):
+            async for j in self.run_all_functions(i, functions, mode="training"):
+                yield j
+
+            async for j in self.run_all_functions(i, functions, mode="validation"):
+                yield j
 
         elapsed = time.time() - start
         print(
@@ -179,24 +213,17 @@ class Application:
             self.progress_bar.title = HTML(f"<b>Stage 1</b>: {description}")
 
             for components, functions in self.registry.groups():
-                iterations = self.prepare_components(components)
-                root = self.run_components(components, iterations)
-                children = [self.run_function(f, iterations) for f in functions]
-                self._tasks.append((root, children))
+                epoch = self.prepare_components(components)
+                root = self.run_components(components, functions, epoch)
+                self._tasks.append(root)
 
-            while not self.quit and len(self._tasks):
+            while not self.quit and len(self._tasks) > 0:
                 self.trainer.prepare()
-                for root, children in list(self._tasks):
+                for root in list(self._tasks):
                     try:
                         await root.__anext__()
                     except StopAsyncIteration:
-                        self._tasks.remove((root, children))
-
-                    for task in children:
-                        try:
-                            await task.__anext__()
-                        except StopAsyncIteration:
-                            pass
+                        self._tasks.remove(root)
 
                 self.trainer.step()
 
