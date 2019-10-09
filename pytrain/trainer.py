@@ -10,18 +10,19 @@ from .data import Batch
 
 def iterate_ordered(data, batch_size):
     for i in itertools.count():
-        indices = torch.arange(i * batch_size, i + 1 * batch_size, size=(batch_size,))
-        yield Batch(input=data[indices % data.shape[0]])
+        indices = torch.arange(i * batch_size, (i + 1) * batch_size, step=+1)
+        yield Batch(data=data[indices % data.shape[0]])
 
 
 def iterate_random(data, batch_size):
     while True:
         indices = torch.randint(0, data.shape[0], size=(batch_size,))
-        yield Batch(input=data[indices])
+        yield Batch(data=data[indices])
 
 
 class BasicTrainer:
-    def __init__(self, lr=1e-2):
+    def __init__(self, device, lr=1e-2):
+        self.device = device
         self.learning_rate = lr
         self.optimizers = []
 
@@ -47,7 +48,7 @@ class BasicTrainer:
         task, args = context
         args = args.copy()
         if "batch" in args:
-            args["batch"] = next(args["batch"])
+            args["batch"] = next(args["batch"]).to(self.device)
 
         loss = task.function(**args)
         loss.backward()

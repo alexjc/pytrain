@@ -37,8 +37,8 @@ class Registry:
 
         self.config = config
 
-    def create_components(self):
-        return {cp: cp() for cp in self.components}
+    def create_components(self, device):
+        return {cp: cp().to(device) for cp in self.components}
 
     def create_datasets(self):
         return {ds: Dataset.from_data(ds()) for ds in self.datasets}
