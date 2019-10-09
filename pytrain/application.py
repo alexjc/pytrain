@@ -75,12 +75,13 @@ SCREEN_FORMATTERS = [
 
 
 class Application:
-    def __init__(self, loop, registry):
+    def __init__(self, loop, device, registry):
         self.loop = loop
+        self.device = device
         self.registry = registry
         self.losses = {}
 
-        self._components = self.registry.create_components("cpu")
+        self._components = self.registry.create_components(self.device)
         self._datasets = self.registry.create_datasets()
         self._tasks = []
         self.quit = False
@@ -214,7 +215,7 @@ class Application:
             formatters=formatters,
         )
 
-        self.trainer = BasicTrainer(device="cpu")
+        self.trainer = BasicTrainer(device=self.device)
 
         with self.progress_bar:
             self.progress_bar.title = HTML(f"<b>Stage 1</b>: {description}")
