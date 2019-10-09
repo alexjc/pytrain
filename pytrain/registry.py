@@ -44,6 +44,8 @@ class Registry:
         return {ds: Dataset.from_data(ds()) for ds in self.datasets}
 
     def load(self):
+        sys.path.append(os.getcwd())
+
         for root, _, files in os.walk(self.config.get("-r") or "train"):
             if root.endswith("__pycache__"):
                 continue
