@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# PyTorch models.
+models/
+
 # Distribution / packaging
 .Python
 build/
@@ -34,6 +37,7 @@ MANIFEST
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
+poetry.lock
 
 # Unit test / coverage reports
 htmlcov/
@@ -89,6 +93,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# VS Code
+.vscode
 
 # Spyder project settings
 .spyderproject
