@@ -1,6 +1,7 @@
 # PyTrain — Copyright (c) 2019, Alex J. Champandard.
 
 import os
+import sys
 import time
 import asyncio
 import itertools
@@ -29,7 +30,8 @@ class ShowBar(formatters.Formatter):
         self.losses = losses
 
         # Predictions for the size of Emoji is one off, critical feature.
-        _CHAR_SIZES_CACHE["🚃"] = 1
+        if sys.platform == "darwin":
+            _CHAR_SIZES_CACHE["🚃"] = 1
 
         self.start = start
         self.end = end
@@ -41,7 +43,7 @@ class ShowBar(formatters.Formatter):
     def format(self, progress_bar, progress, width):
         if progress in self.losses:
             loss = self.losses[progress]
-            return f"error={loss:1.2e}"
+            return f"error={loss:1.4e}"
 
         width -= formatters.get_cwidth(self.start + self.sym_b + self.end)
 
@@ -65,8 +67,6 @@ SCREEN_STYLE = Style.from_dict(
 )
 SCREEN_FORMATTERS = [
     formatters.Label(),
-    # formatters.Text(" i="),
-    # formatters.Progress(),
     formatters.Text(" "),
     "ShowBar",
     formatters.Text(" ETA ", style="class:time-left"),
