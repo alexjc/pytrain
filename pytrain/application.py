@@ -93,8 +93,12 @@ class Application:
                 args[param.name] = self._components[type_]
             if type_ in self._datasets:
                 assert length is None, "Only one dataset per function supported."
-                length = self._datasets[type_].length() // function.config('batch_size', 32)
-                args[param.name] = getattr(self._datasets[type_], mode)
+                data = getattr(self._datasets[type_], mode)
+                if data is None:
+                    length = -1
+                else:
+                    length = len(data) // function.config("batch_size", 32)
+                args[param.name] = data
         return args, length
 
     async def run_function(self, function, args, iterations, mode):
@@ -121,9 +125,12 @@ class Application:
     async def run_all_functions(self, epoch, functions, mode="training"):
         args, length = [], 0
         for function in functions:
-            a, l = self.prepare_function(function)
+            a, l = self.prepare_function(function, mode)
             args.append(a)
             length = max(l, length)
+
+        if length == 0:
+            return
 
         children = [
             self.run_function(f, a, length, mode=mode) for f, a in zip(functions, args)
@@ -146,7 +153,7 @@ class Application:
 
             yield j
 
-        print(f"📉  {mode.capitalize()} epoch #{epoch:02} loss is {total/length}.")
+        print(f"📉  {mode.capitalize()} loss for epoch #{epoch} is {total/length}.")
 
     async def run_components(self, components, functions, epochs):
         start = time.time()
