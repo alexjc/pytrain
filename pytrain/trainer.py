@@ -67,7 +67,7 @@ class BasicTrainer:
             data = (cls.__module__ + "." + cls.__qualname__).encode("utf-8")
             digest = hashlib.blake2b(data, digest_size=8).hexdigest()
             filename = f"{cls.__name__}-{digest}.pkl"
-            torch.save(instance, f"models/{filename}")
+            torch.save(instance.state_dict(), f"models/{filename}")
             log.append(cls.__qualname__)
 
         print("💾  Saved model snapshot for: {}.".format(", ".join(log)))
