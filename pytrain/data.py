@@ -24,7 +24,7 @@ class Dataset:
 
     @classmethod
     def from_data(_, data, train_split=0.9):
-        if hasattr(data, "__next__"):
+        if hasattr(data, "__next__") or hasattr(data, "__getitem__"):
             return Dataset(data)
 
         if isinstance(data, Dataset):
