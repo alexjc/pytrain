@@ -23,7 +23,9 @@ def iterates(batch_size: int = None, order: int = None):
     return wrapper
 
 
-def terminates(component=None, iteration: int = None, threshold: float = None):
+def terminates(
+    component=None, iteration: int = None, epoch: int = None, threshold: float = None
+):
     if component is None:
 
         def wrapper(function):
@@ -31,4 +33,4 @@ def terminates(component=None, iteration: int = None, threshold: float = None):
 
         return wrapper
 
-    _annotate(component, iteration=iteration, threshold=threshold)
+    _annotate(component, iteration=iteration, epoch=epoch, threshold=threshold)
