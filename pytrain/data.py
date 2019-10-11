@@ -4,15 +4,24 @@ import torch
 
 
 class Batch:
-    def __init__(self, data=None, target=None):
-        self.data = data
-        self.target = target
+    """Data-class that stores multiple items sampled from a dataset.
+    """
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        self.attributes = list(kwargs.keys())
+
+    @classmethod
+    def from_data(_, data):
+        if isinstance(data, Batch):
+            return data
+        else:
+            return Batch(data=data)
 
     def to(self, device):
-        if self.data is not None:
-            self.data = self.data.to(device)
-        if self.target is not None:
-            self.target = self.target.to(device)
+        for key in self.attributes:
+            setattr(self, key, getattr(self, key).to(device))
         return self
 
 

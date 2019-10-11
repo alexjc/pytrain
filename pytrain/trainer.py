@@ -11,13 +11,13 @@ from .data import Batch
 def iterate_ordered(data, batch_size):
     for i in itertools.count():
         indices = torch.arange(i * batch_size, (i + 1) * batch_size, step=+1)
-        yield Batch(data=data[indices % len(data)])
+        yield Batch.from_data(data[indices % len(data)])
 
 
 def iterate_random(data, batch_size):
     while True:
         indices = torch.randint(0, len(data), size=(batch_size,))
-        yield Batch(data=data[indices])
+        yield Batch.from_data(data[indices])
 
 
 class BasicTrainer:
