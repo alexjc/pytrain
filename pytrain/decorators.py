@@ -1,6 +1,6 @@
 # PyTrain — Copyright (c) 2019, Alex J. Champandard.
 
-__all__ = ["terminates", "iterates"]
+__all__ = ["terminates", "iterates", "optimizes"]
 
 
 def _annotate(obj, **kwargs):
@@ -29,8 +29,14 @@ def terminates(
     if component is None:
 
         def wrapper(function):
-            return _annotate(function, iteration=iteration, threshold=threshold)
+            return _annotate(
+                function, iteration=iteration, epoch=epoch, threshold=threshold
+            )
 
         return wrapper
 
     _annotate(component, iteration=iteration, epoch=epoch, threshold=threshold)
+
+
+def optimizes(component=None, using=None, learning_rate: float = None):
+    _annotate(component, optimizer_class=using, learning_rate=learning_rate)

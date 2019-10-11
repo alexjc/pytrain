@@ -27,17 +27,25 @@ class BasicTrainer:
         self.samples = None
         self.optimizers = []
 
-    def setup_function(self, task, args, mode):
+    def setup_function(self, function, args, mode):
         for key in ("batch", "iterator"):
             if key not in args:
                 continue
             options = {"training": iterate_random, "validation": iterate_ordered}
-            iterator = options[task.config("order", None) or mode]
-            args[key] = iterator(args[key], task.config("batch_size", 32))
-        return task, args
+            iterator = options[function.config("order", None) or mode]
+            args[key] = iterator(args[key], function.config("batch_size", 32))
+        return function, args
 
-    def setup_component(self, params):
-        optimizer = torch.optim.Adam(params, lr=self.learning_rate)
+    def setup_components(self, components):
+        opt_class = torch.optim.Adam
+
+        params, lr = [], self.learning_rate
+        for cp in components:
+            params.extend(cp.parameters())
+            lr = cp._pytrain.get("learning_rate", lr)
+            opt_class = cp._pytrain.get("optimizer_class", opt_class)
+
+        optimizer = opt_class(params, lr=lr)
         self.optimizers.append(optimizer)
         return optimizer
 

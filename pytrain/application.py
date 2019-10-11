@@ -159,15 +159,13 @@ class Application:
     async def run_components(self, components, functions, epochs):
         start = time.time()
 
-        params, label = [], []
-        for cp in components:
-            component = self._components[cp]
-            label.append(
-                component.__class__.__module__ + "." + component.__class__.__name__
-            )
-            params.extend(component.parameters())
+        label, instances = [], []
+        for component in components:
+            cp = self._components[component]
+            instances.append(cp)
+            label.append(cp.__class__.__module__ + "." + cp.__class__.__name__)
 
-        self.trainer.setup_component(params)
+        self.trainer.setup_components(instances)
         for i in self.progress_bar(
             range(epochs), label=" ".join(label), remove_when_done=True
         ):
