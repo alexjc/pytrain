@@ -51,7 +51,9 @@ class Registry:
                 continue
 
             for filename in files:
-                if not filename.startswith(self.config.get("-k") or "train_"):
+                if filename.startswith('_') or not filename.endswith('.py'):
+                    continue
+                if (self.config.get("-k") or "train_") not in filename:
                     continue
 
                 module = self.import_module(os.path.join(root, filename))
