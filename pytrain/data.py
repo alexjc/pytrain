@@ -33,19 +33,19 @@ class Dataset:
 
     @classmethod
     def from_data(_, data, train_split=0.9):
-        if hasattr(data, "__next__") or hasattr(data, "__getitem__"):
-            return Dataset(data)
-
         if isinstance(data, Dataset):
             return data
 
-        if isinstance(data, tuple):
+        if isinstance(data, (tuple, list)):
             if len(data) != 3:
                 raise ValueError("Dataset requires tuple of length three.")
             return Dataset(*data)
 
+        if hasattr(data, "__next__") or hasattr(data, "__getitem__"):
+            return Dataset(data)
+
         if isinstance(data, torch.Tensor):
-            split = int(data.shape[0] * 0.9)
+            split = int(data.shape[0] * train_split)
             return Dataset(data[:split], data[split:], None)
 
         raise TypeError(f"Unknown type `{type(data)}` for Dataset.")
