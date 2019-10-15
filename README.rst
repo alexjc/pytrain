@@ -15,8 +15,8 @@ Installation
     conda create -n myenv python=3.6
     conda install pytorch -c pytorch
 
-    # Either install latest package:
-    pip install https://github.com/alexjc/pytrain/releases/download/v0.0.2/pytrain-0.0.2.tar.gz
+    # Either install latest release 0.0.x, see GitHub for latest version number:
+    pip install https://github.com/alexjc/pytrain/releases/download/v0.0.x/pytrain-0.0.x.tar.gz
 
     # Or clone the repository online:
     git clone https://github.com/alexjc/pytrain.git
@@ -28,18 +28,18 @@ Usage
 
     # Either launch from installed script:
     pytrain -h
-    pytrain -r examples/
+    pytrain --path examples/
 
     # Or run from current directory:
     python -m pytrain -h
-    python -m pytrain -r examples/
+    python -m pytrain --path examples/
 
 
 Examples
 ========
 
-See the ``#examples/`` folder to get up and running.
+See the ``#docs/`` folder or scripts in ``#examples/`` to get up and running.
 
-NOTE: This version 0.0.1 is an `early prototype <https://www.youtube.com/watch?v=X5PUnVVtq-g>`_ for the PyTorch Hackathon 2019.  Feedback and suggestions are the most welcome at this stage!
+NOTE: This version 0.0.x is an `early prototype <https://www.youtube.com/watch?v=X5PUnVVtq-g>`_ for the PyTorch Hackathon 2019.  Feedback and suggestions are the most welcome at this stage!
 
 .. image:: docs/console.gif
