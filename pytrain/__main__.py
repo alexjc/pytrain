@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # PyTrain — Copyright (c) 2019, Alex J. Champandard.
 """
-Usage: pytrain [-k FILTER] [-r ROOTDIR] [-d DEVICE]
+Usage: pytrain [-i FILTER] [-p ROOTDIR] [-d DEVICE] [-r RESUME]
 
 Options:
-  -k FILTER         Select which tests to run by matching this substring filter.
-  -r ROOTDIR        Base directory from which to collect all the tasks.
+  -i FILTER --include FILTER  Select tests to run by matching this substring filter.
+  -p PATH --path PATH         Root directory from which to collect all the tasks.
+  -r --resume                 Whether to reload previously trained components first. [default: False]
   -d DEVICE --device DEVICE   Device to use for optimizing the components. [default: cpu]
 """
 

@@ -38,7 +38,13 @@ class Registry:
         self.config = config
 
     def create_components(self, device):
-        return {cp: cp().to(device) for cp in self.components}
+        def _create(cp):
+            try:
+                return cp(pretrained=self.config.get("--resume"))
+            except:
+                return cp()
+
+        return {cp: _create(cp).to(device) for cp in self.components}
 
     def create_datasets(self):
         return {ds: Dataset.from_data(ds()) for ds in self.datasets}
@@ -46,14 +52,14 @@ class Registry:
     def load(self):
         sys.path.append(os.getcwd())
 
-        for root, _, files in os.walk(self.config.get("-r") or "train"):
+        for root, _, files in os.walk(self.config.get("--path") or "train"):
             if root.endswith("__pycache__"):
                 continue
 
             for filename in files:
-                if filename.startswith('_') or not filename.endswith('.py'):
+                if filename.startswith("_") or not filename.endswith(".py"):
                     continue
-                if (self.config.get("-k") or "train_") not in filename:
+                if (self.config.get("--include") or "train_") not in filename:
                     continue
 
                 module = self.import_module(os.path.join(root, filename))
