@@ -98,7 +98,7 @@ class Application:
                 if data is None:
                     length = -1
                 else:
-                    length = len(data) // function.config("batch_size", 32)
+                    length = len(data) // function.config("batch_size", 32) + 1
                 args[param.name] = data
         return args, length
 
