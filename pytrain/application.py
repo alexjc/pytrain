@@ -151,6 +151,8 @@ class Application:
 
             if len(children) == 0:
                 break
+            if self.quit is True:
+                break
 
             yield j
 
@@ -174,6 +176,9 @@ class Application:
 
             async for j in self.run_all_functions(i, functions, mode="validation"):
                 yield j
+
+            if self.quit is True:
+                break
 
         elapsed = time.time() - start
         print(
@@ -203,7 +208,7 @@ class Application:
 
         project = os.path.basename(os.getcwd())
         print_formatted_text(
-            SCREEN_BANNER.format(__version__, project), style=SCREEN_STYLE
+            SCREEN_BANNER.format(__version__, project), style=SCREEN_STYLE, flush=True
         )
 
         self.progress_bar = ProgressBar(
@@ -223,7 +228,7 @@ class Application:
                 root = self.run_components(components, functions, epoch)
                 self._tasks.append(root)
 
-            while not self.quit and len(self._tasks) > 0:
+            while len(self._tasks) > 0:
                 self.trainer.prepare()
                 for root in list(self._tasks):
                     try:
