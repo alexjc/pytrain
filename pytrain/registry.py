@@ -90,11 +90,11 @@ class Registry:
                 type_ = param.annotation
                 if type_ == param.empty:
                     continue
-                if hasattr(type_, "parameters"):
-                    self.configure_component(type_, config)
-                    self.components.add(type_)
                 if param.name in ("batch", "data", "iterator"):
                     self.datasets.add(type_)
+                elif hasattr(type_, "parameters") or callable(type_):
+                    self.configure_component(type_, config)
+                    self.components.add(type_)
 
     def configure_component(self, type_, config):
         cfg = getattr(type_, "_pytrain", {})
