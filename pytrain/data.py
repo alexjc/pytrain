@@ -16,8 +16,9 @@ class Batch:
     def from_data(_, data):
         if isinstance(data, Batch):
             return data
-        else:
-            return Batch(data=data)
+        if isinstance(data, dict):
+            return Batch(**data)
+        return Batch(data=data)
 
     def to(self, device):
         for key in self.attributes:
@@ -26,6 +27,10 @@ class Batch:
 
 
 class Dataset:
+    """Container for a dataset that's split into training, validation (optional)
+    and testing (optional) segments.
+    """
+
     def __init__(self, training, validation=None, testing=None):
         self.training = training
         self.validation = validation
