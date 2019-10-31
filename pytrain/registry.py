@@ -120,4 +120,11 @@ class Registry:
         for f in self.functions:
             groups[f.dependencies()].append(f)
 
+        # Strict subsets of other groups are merged into parent.
+        for group in list(groups.keys()):
+            for g in list(groups.keys()):
+                if g < group:
+                    groups[group].extend(groups[g])
+                    del groups[g]
+
         return groups.items()
