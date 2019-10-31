@@ -9,6 +9,19 @@ import collections
 from .data import Dataset
 
 
+def is_component(param):
+    """Rules of thumb to guess if a type annotation can be considered a component.
+    """
+    type_ = param.annotation
+    return hasattr(type_, "parameters") or callable(type_)
+
+
+def is_dataset(param):
+    """Rules of thumb to guess if a type annotation can be considered a dataset.
+    """
+    return param.name in ("batch", "data", "iterator")
+
+
 class Function:
     def __init__(self, name, function, signature):
         self.name = name
@@ -24,7 +37,7 @@ class Function:
             type_ = param.annotation
             if type_ == param.empty:
                 continue
-            if hasattr(type_, "parameters"):
+            if not is_dataset(param) and is_component(param):
                 dependencies.append(type_)
         return tuple(dependencies)
 
@@ -90,9 +103,9 @@ class Registry:
                 type_ = param.annotation
                 if type_ == param.empty:
                     continue
-                if param.name in ("batch", "data", "iterator"):
+                if is_dataset(param):
                     self.datasets.add(type_)
-                elif hasattr(type_, "parameters") or callable(type_):
+                elif is_component(param):
                     self.configure_component(type_, config)
                     self.components.add(type_)
 
