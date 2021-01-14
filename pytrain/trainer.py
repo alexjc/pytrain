@@ -71,8 +71,11 @@ class BasicTrainer:
 
         self.samples += 1
         loss = task.function(**args)
-        loss.backward()
-        return loss.item()
+        if isinstance(loss, float):
+            return loss
+        else:
+            loss.backward()
+            return loss.item()
 
     def run_validation(self, context):
         task, args = context
@@ -82,8 +85,9 @@ class BasicTrainer:
                 args[key] = next(args[key]).to(self.device)
 
         with torch.no_grad():
-            loss = task.function(**args)
-        return loss.item()
+            score = task.function(**args)
+        return score
+
 
     def step(self):
         if self.samples == 0:
