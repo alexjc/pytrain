@@ -19,7 +19,7 @@ def is_component(param):
 def is_dataset(param):
     """Rules of thumb to guess if a type annotation can be considered a dataset.
     """
-    return param.name in ("batch", "data", "iterator")
+    return param.name.split("_")[0] in ("batch", "data", "iterator")
 
 
 class Function:
@@ -27,6 +27,12 @@ class Function:
         self.name = name
         self.function = function
         self.signature = signature
+
+    @classmethod
+    def from_callable(self, module_name, function):
+        qualname = module_name + "." + function.__name__
+        signature = inspect.signature(function)
+        return Function(qualname, function, signature)
 
     def config(self, key, default):
         return self.function._pytrain.get(key, default)
@@ -54,7 +60,7 @@ class Registry:
         def _create(cp):
             try:
                 return cp(pretrained=self.config.get("--resume"))
-            except:
+            except TypeError:
                 return cp()
 
         return {cp: _create(cp).to(device) for cp in self.components}
@@ -89,17 +95,16 @@ class Registry:
     def load_module(self, module):
         module_name = module.__name__.split(".")[-1]
         for name in dir(module):
-            if not name.startswith("task_"):
+            if not name.split("_")[0] in ("task", "show", "main"):
                 continue
 
-            function = getattr(module, name)
-            config = vars(function).setdefault("_pytrain", {})
+            obj = getattr(module, name)
+            config = vars(obj).setdefault("_pytrain", {})
 
-            qualname = module_name + "." + name
-            signature = inspect.signature(function)
-            self.functions.append(Function(qualname, function, signature))
+            function = Function.from_callable(module_name, obj)
+            self.functions.append(function)
 
-            for param in signature.parameters.values():
+            for param in function.signature.parameters.values():
                 type_ = param.annotation
                 if type_ == param.empty:
                     continue
@@ -123,7 +128,7 @@ class Registry:
         # Strict subsets of other groups are merged into parent.
         for group in list(groups.keys()):
             for g in list(groups.keys()):
-                if g < group:
+                if set(g) < set(group):
                     groups[group].extend(groups[g])
                     del groups[g]
 
