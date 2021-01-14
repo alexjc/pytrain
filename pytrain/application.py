@@ -41,8 +41,8 @@ class ShowBar(formatters.Formatter):
         self.unknown = unknown
 
     def format(self, progress_bar, progress, width):
-        if progress in self.losses:
-            loss = self.losses[progress]
+        if id(progress) in self.losses:
+            loss = self.losses[id(progress)]
             return f"error={loss:1.4e}"
 
         width -= formatters.get_cwidth(self.start + self.sym_b + self.end)
@@ -98,8 +98,11 @@ class Application:
                 if data is None:
                     length = -1
                 else:
-                    length = len(data) // function.config("batch_size", 32) + 1
+                    length = math.ceil(len(data) / function.config("batch_size", 32))
+                    length = function.config("iteration", length)
+
                 args[param.name] = data
+        assert length is not None, f"No dataset found for functtion {function.name}."
         return args, length
 
     async def run_function(self, function, args, iterations, mode):
@@ -109,12 +112,19 @@ class Application:
         progress = self.progress_bar(
             data=range(iterations), label="  - " + function.name, remove_when_done=True
         )
-        self.losses[progress] = float("+inf")
-        for i in progress:
-            loss = run_one_batch(context)
-            if loss is None:
-                break
-            yield progress, loss
+        self.losses[id(progress)] = float("+inf")
+
+        try:
+            for i in progress:
+                loss = run_one_batch(context)
+                yield progress, loss
+                if loss == "break":
+                    break
+        finally:
+            if progress in progress.progress_bar.counters:
+                progress.done = True
+            assert progress not in progress.progress_bar.counters
+            del self.losses[id(progress)]
 
     def prepare_components(self, components):
         epochs = 1
@@ -124,6 +134,8 @@ class Application:
         return epochs
 
     async def run_all_functions(self, epoch, functions, mode="training"):
+        functions = [f for f in functions if "task_" in f.name]
+
         args, length = [], 0
         for function in functions:
             a, l = self.prepare_function(function, mode)
@@ -136,27 +148,31 @@ class Application:
         children = [
             self.run_function(f, a, length, mode=mode) for f, a in zip(functions, args)
         ]
-        total = 0.0
-        for j in self.progress_bar(
-            range(length + 1), label=mode, remove_when_done=True
-        ):
-            for task in list(children):
+        total = [0.0 for _ in children]
+        for j in self.progress_bar(range(length), label=mode, remove_when_done=True):
+            for i, task in enumerate(list(children)):
                 try:
                     progress, loss = await task.__anext__()
-                    total += loss
+                    total[i] += loss
                 except StopAsyncIteration:
                     children.remove(task)
 
-                self.losses[progress] = total / (j + 1)
+                self.losses[id(progress)] = total[i] / (j + 1)
+
+            yield j, sum(total) / (j + 1)
 
             if len(children) == 0:
                 break
             if self.quit is True:
                 break
 
-            yield j
+        if len(children) != 0:
+            for task in children:
+                await task.aclose()
 
-        print(f"📉  {mode.capitalize()} loss for epoch #{epoch} is {total/length}.")
+        print(
+            f"📉  {mode.capitalize()} loss for epoch #{epoch} is {sum(total) / (j + 1)}."
+        )
 
     async def run_components(self, components, functions, epochs):
         start = time.time()
@@ -171,10 +187,14 @@ class Application:
         for i in self.progress_bar(
             range(epochs), label=" ".join(label), remove_when_done=True
         ):
-            async for j in self.run_all_functions(i, functions, mode="training"):
+            loss = 0.0
+
+            async for j, loss in self.run_all_functions(i, functions, mode="training"):
                 yield j
 
-            async for j in self.run_all_functions(i, functions, mode="validation"):
+            async for j, loss in self.run_all_functions(
+                i, functions, mode="validation"
+            ):
                 yield j
 
             if self.quit is True:
@@ -195,11 +215,7 @@ class Application:
     async def main(self):
         bindings = KeyBindings()
         bindings.add("c-x")(self.stop)
-
-        description = (
-            f"Running {len(self.registry.functions)} task(s), "
-            + f"optimizing {len(self.registry.components)} component(s)."
-        )
+        bindings.add("c-c")(self.stop)
 
         formatters = SCREEN_FORMATTERS.copy()
         formatters[formatters.index("ShowBar")] = ShowBar(
@@ -245,5 +261,8 @@ class Application:
 
         os.makedirs("models", exist_ok=True)
 
-        with patch_stdout():
-            self.loop.run_until_complete(self.main())
+        async def _run():
+            with patch_stdout():
+                await self.main()
+
+        self.loop.run_until_complete(_run())
