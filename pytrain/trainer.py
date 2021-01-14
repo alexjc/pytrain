@@ -11,7 +11,9 @@ from .data import Batch
 def iterate_ordered(data, batch_size):
     for i in itertools.count():
         indices = torch.arange(i * batch_size, (i + 1) * batch_size, step=+1)
-        yield Batch.from_data(data[indices % len(data)])
+        b = Batch.from_data(data[indices % len(data)])
+        b.number = i
+        yield b
 
 
 def iterate_random(data, batch_size):
@@ -57,8 +59,9 @@ class BasicTrainer:
     def run_training(self, context):
         task, args = context
         args = args.copy()
-        if "batch" in args:
-            args["batch"] = next(args["batch"]).to(self.device)
+        for key in args:
+            if key.split("_")[0] == "batch":
+                args[key] = next(args[key]).to(self.device)
 
         self.samples += 1
         loss = task.function(**args)
@@ -68,8 +71,9 @@ class BasicTrainer:
     def run_validation(self, context):
         task, args = context
         args = args.copy()
-        if "batch" in args:
-            args["batch"] = next(args["batch"]).to(self.device)
+        for key in args:
+            if key.split("_")[0] == "batch":
+                args[key] = next(args[key]).to(self.device)
 
         with torch.no_grad():
             loss = task.function(**args)

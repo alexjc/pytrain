@@ -11,6 +11,7 @@ class Batch:
         for key, value in kwargs.items():
             setattr(self, key, value)
         self.attributes = list(kwargs.keys())
+        self.number = None
 
     @classmethod
     def from_data(_, data):
@@ -22,7 +23,10 @@ class Batch:
 
     def to(self, device):
         for key in self.attributes:
-            setattr(self, key, getattr(self, key).to(device))
+            try:
+                setattr(self, key, getattr(self, key).to(device))
+            except AttributeError:
+                pass
         return self
 
 
