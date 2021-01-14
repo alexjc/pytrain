@@ -30,8 +30,14 @@ class BasicTrainer:
         self.optimizers = []
 
     def setup_function(self, function, args, mode):
-        for key in ("batch", "iterator"):
-            if key not in args:
+        for key in args.keys():
+            if isinstance(args[key], torch.nn.Module):
+                if mode == "training":
+                    args[key].train()
+                if mode == "validation":
+                    args[key].eval()
+
+            if key.split("_")[0] not in ("batch", "iterator"):
                 continue
             options = {"training": iterate_random, "validation": iterate_ordered}
             iterator = options[function.config("order", None) or mode]
