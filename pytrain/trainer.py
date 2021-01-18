@@ -22,12 +22,17 @@ def iterate_random(data, batch_size):
         yield Batch.from_data(data[indices])
 
 
+def get_config(obj, name, default):
+    return getattr(obj, "_pytrain", {}).get(name, default)
+
+
 class BasicTrainer:
     def __init__(self, device, lr=1e-2):
         self.device = device
         self.learning_rate = lr
         self.samples = None
         self.optimizers = []
+        self.schedulers = []
 
     def setup_function(self, function, args, mode):
         for key in args.keys():
@@ -46,15 +51,32 @@ class BasicTrainer:
 
     def setup_components(self, components):
         opt_class = torch.optim.Adam
+        sch_class = torch.optim.lr_scheduler.CyclicLR
 
-        params, lr = [], self.learning_rate
+        all_params, lr = [], self.learning_rate
         for cp in components:
-            params.extend(cp.parameters())
-            lr = cp._pytrain.get("learning_rate", lr)
-            opt_class = cp._pytrain.get("optimizer_class", opt_class)
+            params = list(cp.parameters())
+            if all(p.requires_grad == False for p in params):
+                print("WARNING:", cp, id(cp), "requires no gradients.")
+                continue
 
-        optimizer = opt_class(params, lr=lr)
+            all_params.extend(params)
+            lr = get_config(cp, "learning_rate", lr)
+            opt_class = get_config(cp, "optimizer_class", opt_class)
+            sch_class = get_config(cp, "scheduler_class", sch_class)
+
+        optimizer = opt_class(all_params, lr=lr)
+        scheduler = sch_class(
+            optimizer,
+            base_lr=lr * 1e-2,
+            max_lr=lr,
+            mode="triangular",
+            step_size_up=100,
+            step_size_down=200,
+            cycle_momentum=False,
+        )
         self.optimizers.append(optimizer)
+        self.schedulers.append(scheduler)
         return optimizer
 
     def prepare(self):
@@ -88,6 +110,8 @@ class BasicTrainer:
             score = task.function(**args)
         return score
 
+    def report(self, loss):
+        pass
 
     def step(self):
         if self.samples == 0:
@@ -95,6 +119,8 @@ class BasicTrainer:
 
         for optimizer in self.optimizers:
             optimizer.step()
+        for scheduler in self.schedulers:
+            scheduler.step()
 
     def save(self, components):
         log = []
