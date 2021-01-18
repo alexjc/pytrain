@@ -17,6 +17,7 @@ from prompt_toolkit.utils import _CHAR_SIZES_CACHE
 
 from . import __version__
 from .trainer import BasicTrainer
+from .registry import Function
 
 
 class ShowBar(formatters.Formatter):
@@ -261,11 +262,43 @@ class Application:
 
         self.trainer = BasicTrainer(device=self.device)
 
-        with self.progress_bar:
-            self.progress_bar.title = HTML(f"<b>Stage 1</b>: {description}")
+        scripts = [f for f in self.registry.functions if "main_" in f.name]
 
-            for components, functions in self.registry.groups():
-                epoch = self.prepare_components(components)
+        # Old-style hard-coded training procedure.
+        if len(scripts) == 0:
+            await self._run_stage(stage="N/A", groups=self.registry.groups())
+
+        # New-style user-defined training scripts.
+        if len(scripts) == 1:
+            await scripts[0].function(self)
+
+    async def fit(self, stage, epochs, group):
+        self.trainer.learning_rate = group["learning_rate"]
+        await self._run_stage(
+            stage,
+            groups=[
+                (
+                    group["models"],
+                    [
+                        Function.from_callable("", t)
+                        for t in group["tasks"]
+                    ],
+                )
+            ],
+            epochs=epochs,
+        )
+
+    async def _run_stage(self, stage, groups, epochs=1):
+        description = (
+            f"Running {len(groups)} task(s), "
+            + f"optimizing {len(groups)} component(s)."
+        )
+
+        with self.progress_bar:
+            self.progress_bar.title = HTML(f"<b>Stage {stage}</b>: {description}")
+
+            for components, functions in groups:
+                epoch = self.prepare_components(components, epochs=epochs)
                 root = self.run_components(components, functions, epoch)
                 self._tasks.append(root)
 
