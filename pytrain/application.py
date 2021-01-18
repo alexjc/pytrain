@@ -2,6 +2,7 @@
 
 import os
 import sys
+import math
 import time
 import asyncio
 import itertools
@@ -126,8 +127,7 @@ class Application:
             assert progress not in progress.progress_bar.counters
             del self.losses[id(progress)]
 
-    def prepare_components(self, components):
-        epochs = 1
+    def prepare_components(self, components, epochs=1):
         for cp in components:
             config = getattr(cp, "_pytrain", {})
             epochs = max(epochs, config.get("epoch", 0))
@@ -174,6 +174,26 @@ class Application:
             f"📉  {mode.capitalize()} loss for epoch #{epoch} is {sum(total) / (j + 1)}."
         )
 
+    async def run_all_tests(self, epoch, functions):
+        functions = [f for f in functions if "show_" in f.name]
+        args, iters = [], {}
+        for function in functions:
+            a, i = self.prepare_function(function, mode="training")
+            args.append(a)
+            iters[function] = i
+
+        children = [
+            self.run_function(f, a, iterations=iters[f], mode="validation")
+            for f, a in zip(functions, args)
+        ]
+        while len(children) > 0:
+            for task in list(children):
+                try:
+                    await task.__anext__()
+                    yield
+                except StopAsyncIteration:
+                    children.remove(task)
+
     async def run_components(self, components, functions, epochs):
         start = time.time()
 
@@ -196,6 +216,11 @@ class Application:
                 i, functions, mode="validation"
             ):
                 yield j
+
+            async for j in self.run_all_tests(i, functions):
+                yield j
+
+            self.trainer.report(loss)
 
             if self.quit is True:
                 break
